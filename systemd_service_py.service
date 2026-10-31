@@ -1,0 +1,63 @@
+[Unit]
+Description=systemd_service_py - простой Python HTTP-сервис с эндпоинтом /health-check
+Documentation=man:systemd.service(5)
+# Сервис нужен только после того, как поднялась сеть.
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+# exec - systemd считает сервис запущенным, когда процесс реально создан
+# (если путь к python неверный, юнит сразу упадёт, а не будет "висеть" в active).
+Type=exec
+
+# Скрипт лежит в /opt/systemd_service_py/systemd_service_py.py
+# (см. README.md, раздел "Установка").
+ExecStart=/usr/bin/python3 /opt/systemd_service_py/systemd_service_py.py
+
+#User=pyworker
+#Group=pyworker
+
+WorkingDirectory=/opt/systemd_service_py
+
+# Параметры сервиса (при необходимости поменяйте адрес/порт).
+Environment=SYSTEMD_SERVICE_PY_HOST=177.203.58.26
+Environment=SYSTEMD_SERVICE_PY_PORT=8080
+Environment=SYSTEMD_SERVICE_PY_LOG_LEVEL=INFO
+
+# Не буферизуем stdout, иначе логи в journalctl появляются с задержкой.
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONDONTWRITEBYTECODE=1
+
+# systemd присылает SIGTERM - сервис корректно завершается по нему.
+KillSignal=SIGTERM
+KillMode=mixed
+TimeoutStopSec=10s
+
+# Перезапуск при падении (в том числе если порт занят).
+Restart=on-failure
+RestartSec=2s
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=systemd_service_py
+
+# --- Ограничение прав (можно ослабить, если что-то мешает) ---------------
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=yes
+RestrictRealtime=yes
+LockPersonality=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+
+[Install]
+WantedBy=multi-user.target
